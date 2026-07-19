@@ -65,7 +65,7 @@ header .logo svg{width:16px;height:16px;opacity:.5}
 .balance-top .trend.down{background:var(--expense-bg);color:var(--expense)}
 .balance-sub{font-size:.78rem;color:var(--text-muted)}
 
-.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
 .summary-card{
   padding:16px 18px;border-radius:var(--radius);border:1px solid var(--border);
   background:var(--card);display:flex;align-items:center;gap:14px;
@@ -83,6 +83,20 @@ header .logo svg{width:16px;height:16px;opacity:.5}
 .summary-card .info .value{font-size:1.25rem;font-weight:700;margin-top:2px;letter-spacing:-.5px}
 .summary-card.income .info .value{color:var(--income)}
 .summary-card.expense .info .value{color:var(--expense)}
+
+.summary-card.pocket:hover{border-color:rgba(99,102,241,.2);background:var(--primary-bg)}
+.summary-card.pocket .info .value{color:var(--primary)}
+.summary-card.pocket .icon{background:var(--primary-bg);color:var(--primary)}
+
+.income-split{margin-bottom:20px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px}
+.income-split .split-label{font-size:.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;font-weight:500;margin-bottom:8px}
+.income-split .split-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.03)}
+.income-split .split-bar .seg{transition:width .6s cubic-bezier(.16,1,.3,1)}
+.income-split .split-bar .seg.expense-part{background:var(--expense)}
+.income-split .split-bar .seg.pocket-part{background:var(--primary)}
+.income-split .split-legend{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap}
+.income-split .split-legend .leg{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text-secondary)}
+.income-split .split-legend .leg .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 .insights-bar{
   display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px
@@ -285,6 +299,22 @@ header .logo svg{width:16px;height:16px;opacity:.5}
         <div class="value" id="expenseDisplay">$0</div>
       </div>
     </div>
+    <div class="summary-card pocket">
+      <div class="icon">&#9733;</div>
+      <div class="info">
+        <div class="label">Pocket</div>
+        <div class="value" id="pocketDisplay">$0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="income-split" id="incomeSplit">
+    <div class="split-label">Where your income goes</div>
+    <div class="split-bar"><div class="seg expense-part" id="expenseSeg" style="width:0%"></div><div class="seg pocket-part" id="pocketSeg" style="width:0%"></div></div>
+    <div class="split-legend">
+      <span class="leg"><span class="dot" style="background:var(--expense)"></span>Expenses</span>
+      <span class="leg"><span class="dot" style="background:var(--primary)"></span>Pocket (savings &amp; leftover)</span>
+    </div>
   </div>
 
   <div class="insights-bar" id="insightsBar">
@@ -380,7 +410,7 @@ const CAT_COLORS = {
 const $ = s => document.querySelector(s)
 const $$ = s => document.querySelectorAll(s)
 
-const balanceDisplay = $('#balanceDisplay'), incomeDisplay = $('#incomeDisplay'), expenseDisplay = $('#expenseDisplay')
+const balanceDisplay = $('#balanceDisplay'), incomeDisplay = $('#incomeDisplay'), expenseDisplay = $('#expenseDisplay'), pocketDisplay = $('#pocketDisplay'), expenseSeg = $('#expenseSeg'), pocketSeg = $('#pocketSeg')
 const descInput = $('#descInput'), amountInput = $('#amountInput'), catSelect = $('#catSelect')
 const addBtn = $('#addBtn'), txList = $('#txList'), toasts = $('#toasts')
 const searchInput = $('#searchInput'), exportBtn = $('#exportBtn')
@@ -516,6 +546,16 @@ function render(){
   $('#txCountVal').textContent=monthTxs.length
   $('#savingsRateVal').textContent=savingsRate+'%'
   $('#savingsRateVal').className='val'+(savingsRate>=20?' green':savingsRate>=0?' amber':' red')
+
+  const pocket=income-expense
+  pocketDisplay.textContent=fmt(pocket)
+  if(income>0){
+    const pct=Math.min(expense/income*100,100)
+    expenseSeg.style.width=pct+'%'
+    pocketSeg.style.width=Math.max(100-pct,0)+'%'
+  }else{
+    expenseSeg.style.width='0%';pocketSeg.style.width='0%'
+  }
 
   // Budgets
   const budgets=budgetLoad()
