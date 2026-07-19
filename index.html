@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Budget</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root {
+  --bg:#07080c; --surface:rgba(255,255,255,.025);
+  --card:rgba(255,255,255,.04); --card-hover:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.06); --border-hover:rgba(255,255,255,.1);
+  --text:#f0f2f5; --text-secondary:rgba(255,255,255,.5);
+  --text-muted:rgba(255,255,255,.25);
+  --income:#10b981; --income-bg:rgba(16,185,129,.1);
+  --expense:#ef4444; --expense-bg:rgba(239,68,68,.1);
+  --accent:#f59e0b; --accent-bg:rgba(245,158,11,.1);
+  --primary:#6366f1; --primary-bg:rgba(99,102,241,.1);
+  --radius:16px; --radius-sm:10px; --radius-xs:6px;
+}
+
+html{font-size:16px}
+body{
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:20px;-webkit-font-smoothing:antialiased;overflow-x:hidden
+}
+
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .glow{
+  position:absolute;border-radius:50%;filter:blur(120px);opacity:.15
+}
+.bg .glow:nth-child(1){width:600px;height:600px;background:#10b981;top:-20%;left:-15%}
+.bg .glow:nth-child(2){width:500px;height:500px;background:#6366f1;bottom:-15%;right:-10%;animation-delay:-10s}
+.bg .glow:nth-child(3){width:350px;height:350px;background:#f59e0b;top:45%;left:60%;animation-delay:-20s}
+
+.bg .grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:60px 60px
+}
+
+.container{position:relative;z-index:1;width:100%;max-width:560px}
+
+header{text-align:center;margin-bottom:20px;padding:16px 0 8px}
+header .logo{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:.75rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:16px
+}
+header .logo svg{width:18px;height:18px;opacity:.6}
+
+.balance{
+  text-align:center;padding:8px 0 4px
+}
+.balance .label{font-size:.8rem;color:var(--text-secondary);font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+.balance .amount{
+  font-size:3.2rem;font-weight:700;letter-spacing:-2px;
+  line-height:1.1;margin-top:4px;
+  background:linear-gradient(135deg,#f0f2f5 30%,#94a3b8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text
+}
+.balance .period{font-size:.7rem;color:var(--text-muted);margin-top:4px}
+
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}
+.summary-card{
+  padding:16px 18px;border-radius:var(--radius);border:1px solid var(--border);
+  background:var(--card);display:flex;align-items:center;gap:14px;
+  transition:border-color .2s,background .2s
+}
+.summary-card.income:hover{border-color:rgba(16,185,129,.2);background:var(--income-bg)}
+.summary-card.expense:hover{border-color:rgba(239,68,68,.2);background:var(--expense-bg)}
+.summary-card .icon{
+  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex-shrink:0;
+  font-size:1.1rem
+}
+.summary-card.income .icon{background:var(--income-bg);color:var(--income)}
+.summary-card.expense .icon{background:var(--expense-bg);color:var(--expense)}
+.summary-card .info{flex:1;min-width:0}
+.summary-card .info .label{font-size:.72rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.summary-card .info .value{
+  font-size:1.3rem;font-weight:700;margin-top:2px;letter-spacing:-.5px
+}
+.summary-card.income .info .value{color:var(--income)}
+.summary-card.expense .info .value{color:var(--expense)}
+
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);margin-bottom:14px;
+  transition:border-color .2s
+}
+.card:hover{border-color:var(--border-hover)}
+.card-header{
+  padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border)
+}
+.card-header h2{
+  font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-secondary)
+}
+.card-body{padding:14px 18px 18px}
+
+.add-form{display:grid;grid-template-columns:1fr auto auto;gap:8px}
+.add-form input,.add-form select,.add-form button{
+  padding:10px 12px;border-radius:var(--radius-sm);
+  font-size:.88rem;font-family:inherit;outline:none;
+  transition:border-color .2s,box-shadow .2s,background .2s
+}
+.add-form input,.add-form select{
+  border:1px solid var(--border);background:var(--surface);color:var(--text)
+}
+.add-form input::placeholder{color:var(--text-muted)}
+.add-form input:focus,.add-form select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.add-form select{cursor:pointer;min-width:100px}
+.add-form select option{background:var(--bg);color:var(--text)}
+.add-form .type-toggle{
+  display:flex;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);flex-shrink:0
+}
+.add-form .type-toggle button{
+  padding:10px 14px;border:none;cursor:pointer;font-size:.82rem;font-weight:500;
+  font-family:inherit;background:var(--surface);color:var(--text-muted);
+  transition:background .2s,color .2s
+}
+.add-form .type-toggle button.active.income-type{background:var(--income-bg);color:var(--income)}
+.add-form .type-toggle button.active.expense-type{background:var(--expense-bg);color:var(--expense)}
+.add-form .add-btn{
+  border:none;background:var(--primary);color:#fff;cursor:pointer;
+  font-weight:600;padding:10px 20px;font-size:.82rem;
+  transition:transform .15s,box-shadow .15s,background .2s
+}
+.add-form .add-btn:hover{background:#5558e6;box-shadow:0 4px 16px rgba(99,102,241,.25)}
+.add-form .add-btn:active{transform:scale(.96)}
+
+.chart-section{margin-bottom:14px}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center}
+.chart-wrap{position:relative;width:100%;max-width:180px;margin:0 auto}
+.chart-wrap svg{width:100%;height:auto;display:block;transform:rotate(-90deg)}
+.chart-center{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  pointer-events:none
+}
+.chart-center .total{font-size:1.8rem;font-weight:700;letter-spacing:-1px}
+.chart-center .sub{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+
+.legend{display:flex;flex-direction:column;gap:6px}
+.legend-item{
+  display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+  transition:background .15s;cursor:pointer;font-size:.82rem
+}
+.legend-item:hover{background:var(--card-hover)}
+.legend-item .dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0
+}
+.legend-item .cat-label{color:var(--text-secondary);flex:1}
+.legend-item .cat-value{font-weight:600;font-variant-numeric:tabular-nums}
+.legend-item .cat-pct{color:var(--text-muted);min-width:32px;text-align:right}
+
+.empty-state{
+  text-align:center;padding:32px 20px;color:var(--text-muted)
+}
+.empty-state svg{width:40px;height:40px;margin-bottom:10px;opacity:.3}
+.empty-state p{font-size:.85rem}
+
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap}
+.filter-bar button{
+  padding:4px 12px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;color:var(--text-secondary);cursor:pointer;
+  font-size:.75rem;font-family:inherit;font-weight:500;
+  transition:all .2s
+}
+.filter-bar button:hover{border-color:var(--border-hover);color:var(--text)}
+.filter-bar button.active{background:var(--primary-bg);border-color:var(--primary);color:var(--primary)}
+
+.transaction-list{display:flex;flex-direction:column;gap:4px}
+.transaction-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 14px;border-radius:var(--radius-sm);
+  border:1px solid transparent;cursor:default;
+  transition:background .15s,border-color .15s;
+  animation:txIn .3s cubic-bezier(.16,1,.3,1) both
+}
+@keyframes txIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.transaction-item:hover{background:var(--card-hover);border-color:var(--border)}
+.transaction-item .tx-icon{
+  width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  flex-shrink:0;font-size:.85rem
+}
+.transaction-item .tx-icon.income{background:var(--income-bg);color:var(--income)}
+.transaction-item .tx-icon.expense{background:var(--expense-bg);color:var(--expense)}
+.transaction-item .tx-info{flex:1;min-width:0}
+.transaction-item .tx-info .tx-desc{font-size:.88rem;font-weight:500}
+.transaction-item .tx-info .tx-meta{
+  display:flex;gap:6px;align-items:center;margin-top:2px
+}
+.transaction-item .tx-info .tx-cat{
+  font-size:.7rem;color:var(--text-muted);padding:1px 6px;border-radius:4px;
+  background:var(--surface);text-transform:capitalize
+}
+.transaction-item .tx-info .tx-date{font-size:.68rem;color:var(--text-muted)}
+.transaction-item .tx-amount{
+  font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;
+  letter-spacing:-.3px
+}
+.transaction-item .tx-amount.income{color:var(--income)}
+.transaction-item .tx-amount.expense{color:var(--expense)}
+.transaction-item .tx-del{
+  width:26px;height:26px;border:none;border-radius:6px;background:none;
+  color:var(--text-muted);cursor:pointer;display:grid;place-items:center;
+  font-size:.8rem;opacity:0;transition:opacity .15s,background .15s,color .15s;flex-shrink:0
+}
+.transaction-item:hover .tx-del{opacity:1}
+.transaction-item .tx-del:hover{background:var(--expense-bg);color:var(--expense)}
+
+.toast-container{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  z-index:100;pointer-events:none
+}
+.toast{
+  background:rgba(255,255,255,.08);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 16px;font-size:.82rem;white-space:nowrap;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+  animation:tIn .3s cubic-bezier(.16,1,.3,1) both;
+  pointer-events:auto
+}
+.toast.removing{animation:tOut .2s ease both}
+@keyframes tIn{from{opacity:0;transform:translateY(16px)scale(.95)}to{opacity:1;transform:translateY(0)scale(1)}}
+@keyframes tOut{to{opacity:0;transform:translateY(8px)}}
+
+@media(max-width:500px){
+  body{padding:12px}
+  header .amount{font-size:2.6rem}
+  .add-form{grid-template-columns:1fr;gap:6px}
+  .add-form .type-toggle{order:-1;justify-content:center}
+  .add-form .add-btn{width:100%}
+  .chart-row{grid-template-columns:1fr}
+  .summary{gap:8px}
+  .summary-card{padding:12px 14px}
+  .transaction-item{padding:8px 12px}
+  .transaction-item .tx-del{opacity:1}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<div class="bg"><div class="glow"></div><div class="glow"></div><div class="glow"></div><div class="grid"></div></div>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Budget
+    </div>
+  </header>
+
+  <div class="balance">
+    <div class="label">Net Balance</div>
+    <div class="amount" id="balanceDisplay">$0</div>
+    <div class="period" id="periodDisplay">Income &middot; Expenses</div>
+  </div>
+
+  <div class="summary">
+    <div class="summary-card income">
+      <div class="icon">&uarr;</div>
+      <div class="info">
+        <div class="label">Income</div>
+        <div class="value" id="incomeDisplay">$0</div>
+      </div>
+    </div>
+    <div class="summary-card expense">
+      <div class="icon">&darr;</div>
+      <div class="info">
+        <div class="label">Expenses</div>
+        <div class="value" id="expenseDisplay">$0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Add Transaction</h2></div>
+    <div class="card-body">
+      <div class="add-form">
+        <div class="type-toggle">
+          <button class="active income-type" data-type="income">&plus; Income</button>
+          <button data-type="expense">&minus; Expense</button>
+        </div>
+        <input id="descInput" type="text" placeholder="Description" autocomplete="off" />
+        <input id="amountInput" type="number" placeholder="0.00" min="0" step="0.01" />
+        <select id="catSelect"></select>
+        <button class="add-btn" id="addBtn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="chartCard">
+    <div class="card-header"><h2>Breakdown</h2></div>
+    <div class="card-body">
+      <div class="chart-row">
+        <div class="chart-wrap">
+          <svg viewBox="0 0 100 100" id="chartSvg">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="8"/>
+          </svg>
+          <div class="chart-center">
+            <span class="total" id="chartTotal">0</span>
+            <span class="sub">items</span>
+          </div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="empty-state" id="chartEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <p>Add transactions to see breakdown</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Transactions</h2>
+      <div class="filter-bar">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="income">Income</button>
+        <button data-filter="expense">Expense</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding-bottom:10px">
+      <div class="transaction-list" id="txList">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+          <p>No transactions yet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const STORAGE_KEY = 'budgetData'
+let txns = []
+let txType = 'income'
+let filter = 'all'
+
+const CATEGORIES = {
+  income: ['Salary','Freelance','Investments','Gifts','Refunds','Other'],
+  expense: ['Food & Dining','Transportation','Shopping','Entertainment','Bills & Utilities','Health','Education','Groceries','Rent','Other']
+}
+
+const CAT_ICONS = {
+  'Salary':'💼','Freelance':'💻','Investments':'📈','Gifts':'🎁','Refunds':'↩️','Other':'📌',
+  'Food & Dining':'🍽️','Transportation':'🚗','Shopping':'🛍️','Entertainment':'🎬',
+  'Bills & Utilities':'📄','Health':'💊','Education':'📚','Groceries':'🛒','Rent':'🏠'
+}
+
+const CAT_COLORS = {
+  'Salary':'#10b981','Freelance':'#34d399','Investments':'#059669','Gifts':'#f59e0b','Refunds':'#6366f1',
+  'Food & Dining':'#ef4444','Transportation':'#f97316','Shopping':'#ec4899','Entertainment':'#8b5cf6',
+  'Bills & Utilities':'#f59e0b','Health':'#06b6d4','Education':'#3b82f6','Groceries':'#84cc16','Rent':'#64748b',
+  'Other':'#94a3b8'
+}
+
+const $ = s => document.querySelector(s)
+const $$ = s => document.querySelectorAll(s)
+
+const balanceDisplay = $('#balanceDisplay')
+const incomeDisplay = $('#incomeDisplay')
+const expenseDisplay = $('#expenseDisplay')
+const descInput = $('#descInput')
+const amountInput = $('#amountInput')
+const catSelect = $('#catSelect')
+const addBtn = $('#addBtn')
+const txList = $('#txList')
+const chartSvg = $('#chartSvg')
+const chartTotal = $('#chartTotal')
+const legend = $('#legend')
+const chartEmpty = $('#chartEmpty')
+const chartCard = $('#chartCard')
+const toasts = $('#toasts')
+
+function uid() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36) }
+
+function lsSave() { localStorage.setItem(STORAGE_KEY, JSON.stringify(txns)) }
+function lsLoad() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [] } catch { return [] }
+}
+
+function populateCats() {
+  const cats = CATEGORIES[txType]
+  catSelect.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('')
+}
+
+function fmt(n) {
+  const sign = n < 0 ? '-' : ''
+  return sign + '$' + Math.abs(n).toLocaleString('en', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('en', { month:'short', day:'numeric' })
+}
+
+function shortDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = (now - d) / 1000
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago'
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago'
+  if (diff < 172800) return 'yesterday'
+  return d.toLocaleDateString('en', { month:'short', day:'numeric' })
+}
+
+function addTx() {
+  const desc = descInput.value.trim()
+  const amt = parseFloat(amountInput.value)
+  if (!desc) { toast('Enter a description', 1500); descInput.focus(); return }
+  if (!amt || amt <= 0) { toast('Enter an amount', 1500); amountInput.focus(); return }
+  const cat = catSelect.value
+  const tx = { id: uid(), desc, amount: txType === 'income' ? amt : -amt, type: txType, category: cat, createdAt: new Date().toISOString() }
+  txns.unshift(tx)
+  lsSave()
+  descInput.value = ''; amountInput.value = ''
+  descInput.focus()
+  render()
+  toast(txType === 'income' ? 'Income added' : 'Expense added', 1500)
+}
+
+function deleteTx(id) {
+  txns = txns.filter(t => t.id !== id)
+  lsSave(); render()
+  toast('Deleted', 1200)
+}
+
+function renderChart() {
+  const expenses = txns.filter(t => t.type === 'expense')
+  if (!expenses.length) {
+    chartSvg.innerHTML = '<circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.04)" stroke-width="8"/>'
+    chartTotal.textContent = '0'
+    legend.innerHTML = ''
+    chartEmpty.style.display = ''
+    return
+  }
+  chartEmpty.style.display = 'none'
+
+  const groups = {}
+  let total = 0
+  for (const t of expenses) {
+    const key = t.category || 'Other'
+    groups[key] = (groups[key] || 0) + Math.abs(t.amount)
+    total += Math.abs(t.amount)
+  }
+
+  const sorted = Object.entries(groups).sort((a,b) => b[1] - a[1])
+  const circumference = 2 * Math.PI * 42
+  let offset = 0
+  let slices = ''
+
+  for (const [cat, amt] of sorted) {
+    const pct = amt / total
+    const length = pct * circumference
+    slices += `<circle cx="50" cy="50" r="42" fill="none" stroke="${CAT_COLORS[cat] || '#64748b'}" stroke-width="8" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" stroke-linecap="butt"/>`
+    offset += length
+  }
+  chartSvg.innerHTML = slices
+  chartTotal.textContent = expenses.length
+
+  legend.innerHTML = sorted.map(([cat, amt]) => `
+    <div class="legend-item">
+      <span class="dot" style="background:${CAT_COLORS[cat] || '#64748b'}"></span>
+      <span class="cat-label">${cat}</span>
+      <span class="cat-value">${fmt(amt)}</span>
+      <span class="cat-pct">${Math.round(amt/total*100)}%</span>
+    </div>
+  `).join('')
+}
+
+function render() {
+  const total = txns.reduce((s,t) => s + t.amount, 0)
+  const income = txns.filter(t => t.type === 'income').reduce((s,t) => s + Math.abs(t.amount), 0)
+  const expense = txns.filter(t => t.type === 'expense').reduce((s,t) => s + Math.abs(t.amount), 0)
+
+  balanceDisplay.textContent = fmt(total)
+  incomeDisplay.textContent = fmt(income)
+  expenseDisplay.textContent = fmt(expense)
+
+  const filtered = filter === 'all' ? txns : filter === 'income' ? txns.filter(t => t.type === 'income') : txns.filter(t => t.type === 'expense')
+
+  if (!filtered.length) {
+    txList.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg><p>No transactions yet</p></div>'
+  } else {
+    txList.innerHTML = filtered.map(t => {
+      const icon = CAT_ICONS[t.category] || (t.type === 'income' ? '💰' : '💳')
+      return `<div class="transaction-item">
+        <div class="tx-icon ${t.type}">${icon}</div>
+        <div class="tx-info">
+          <div class="tx-desc">${esc(t.desc)}</div>
+          <div class="tx-meta">
+            <span class="tx-cat">${esc(t.category || 'Other')}</span>
+            <span class="tx-date">${shortDate(t.createdAt)}</span>
+          </div>
+        </div>
+        <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(Math.abs(t.amount))}</div>
+        <button class="tx-del" data-id="${t.id}">✕</button>
+      </div>`
+    }).join('')
+  }
+
+  renderChart()
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
+
+function toast(msg, duration = 2000) {
+  const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg
+  toasts.prepend(el)
+  setTimeout(() => { if (el.parentNode) { el.classList.add('removing'); setTimeout(() => el.remove(), 200) } }, duration)
+}
+
+// Init
+populateCats()
+txns = lsLoad()
+render()
+
+// Events
+document.querySelectorAll('.type-toggle button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.type-toggle button').forEach(bb => bb.classList.remove('active', 'income-type', 'expense-type'))
+    b.classList.add('active', b.dataset.type + '-type')
+    txType = b.dataset.type
+    populateCats()
+  })
+})
+
+document.querySelectorAll('.filter-bar button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filter-bar button').forEach(bb => bb.classList.remove('active'))
+    b.classList.add('active')
+    filter = b.dataset.filter
+    render()
+  })
+})
+
+addBtn.addEventListener('click', addTx)
+descInput.addEventListener('keydown', e => { if (e.key === 'Enter') amountInput.focus() })
+amountInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTx() })
+
+txList.addEventListener('click', e => {
+  const btn = e.target.closest('.tx-del')
+  if (btn) deleteTx(btn.dataset.id)
+})
+</script>
+</body>
+</html>
