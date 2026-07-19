@@ -343,10 +343,12 @@ header .logo svg{width:18px;height:18px;opacity:.6}
 <div class="toast-container" id="toasts"></div>
 
 <script>
+const API = '/api/transactions'
 const STORAGE_KEY = 'budgetData'
 let txns = []
 let txType = 'income'
 let filter = 'all'
+let serverAvail = false
 
 const CATEGORIES = {
   income: ['Salary','Freelance','Investments','Gifts','Refunds','Other'],
@@ -391,6 +393,25 @@ function lsLoad() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [] } catch { return [] }
 }
 
+async function serverSync() {
+  try {
+    const res = await fetch(API + '?_=' + Date.now())
+    serverAvail = res.ok
+  } catch { serverAvail = false }
+}
+
+async function api(method, path, body) {
+  if (!serverAvail) return null
+  try {
+    const opts = { method, headers:{'Content-Type':'application/json'} }
+    if (body) opts.body = JSON.stringify(body)
+    const res = await fetch(API + path, opts)
+    if (!res.ok) return null
+    if (res.status === 204) return null
+    return res.json()
+  } catch { return null }
+}
+
 function populateCats() {
   const cats = CATEGORIES[txType]
   catSelect.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('')
@@ -429,12 +450,15 @@ function addTx() {
   descInput.value = ''; amountInput.value = ''
   descInput.focus()
   render()
+  api('POST', '', { desc: tx.desc, amount: Math.abs(tx.amount), type: tx.type, category: tx.category }).then(d => { if (d) { tx.serverId = d.id; lsSave() } })
   toast(txType === 'income' ? 'Income added' : 'Expense added', 1500)
 }
 
 function deleteTx(id) {
+  const tx = txns.find(t => t.id === id)
   txns = txns.filter(t => t.id !== id)
   lsSave(); render()
+  api('DELETE', '/' + (tx.serverId || tx.id))
   toast('Deleted', 1200)
 }
 
@@ -525,8 +549,18 @@ function toast(msg, duration = 2000) {
 
 // Init
 populateCats()
-txns = lsLoad()
-render()
+;(async () => {
+  await serverSync()
+  if (serverAvail) {
+    const data = await api('GET', '')
+    if (data && data.length) {
+      txns = data.map(t => ({ ...t, id: uid(), serverId: t.id }))
+      lsSave(); render(); return
+    }
+  }
+  txns = lsLoad()
+  render()
+})()
 
 // Events
 document.querySelectorAll('.type-toggle button').forEach(b => {
